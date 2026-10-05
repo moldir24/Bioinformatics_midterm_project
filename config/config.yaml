@@ -1,0 +1,195 @@
+# The real analysis.
+#
+#   snakemake check_sources --cores 1 --configfile config/config.yaml    # week 1: do all sources resolve?
+#   snakemake --cores 8 --configfile config/config.yaml                  # everything
+#
+# Downloads about 3 GB (two human assemblies, their RepeatMasker tracks, the
+# GIAB truth set, and slices of three GIAB BAM files). Needs about 8 GB RAM
+# with the default chromosome subset.
+#
+# Every URL below was taken from the provider's own documentation (see
+# docs/data_sources.md). The check_sources rule is what proves they resolve
+# from your network on the day you run it; run it before anything else.
+
+outdir: results
+seed: 26
+threads: 8
+
+# --------------------------------------------------------------------------
+# Reference genomes and their annotations (task 2)
+# --------------------------------------------------------------------------
+# contigs: which sequences of the FASTA to use ("all" or a list).
+#   The human genomes are restricted to chr20-22 so that all seven aligners
+#   can be indexed and run on a laptop. chr21 and chr22 are acrocentric: their
+#   short arms and centromeres are exactly the sequence that T2T-CHM13 adds
+#   over GRCh38, so the GRCh38-versus-CHM13 comparison is informative there.
+#   Consequence, to be stated in the report: paralogs on other chromosomes are
+#   absent, so misplacement between chromosomes is under-estimated.
+#   Set `contigs: all` on a machine with >= 64 GB RAM to remove that limit
+#   (and replace bwamem2 by bwa, whose index needs far less memory).
+genomes:
+  grch38:
+    label: "Human GRCh38 (chr20-22)"
+    fasta: {url: "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.gz"}
+    contigs: [chr20, chr21, chr22]
+    strata:
+      # RepeatMasker .out: 1-based inclusive coordinates
+      repeatmasker: {format: rmsk_out, url: "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/hg38.fa.out.gz"}
+      # UCSC table: 0-based half-open, leading bin column, copy identity in column 27
+      segdup: {format: ucsc_superdups, url: "https://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/genomicSuperDups.txt.gz"}
+      # GIAB v4.2.1 high-confidence regions for HG002 (BED, 0-based)
+      giab_confident:
+        format: bed
+        label: confident
+        url: "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark_noinconsistent.bed"
+    # GIAB v4.2.1 truth variants of HG002: applied to simulated reads, masked when measuring error rates
+    variants:
+      vcf: {url: "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"}
+
+  chm13:
+    label: "Human T2T-CHM13v2.0 (chr20-22)"
+    fasta: {url: "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.fa.gz"}
+    contigs: [chr20, chr21, chr22]
+    # ties UCSC names (chr20) to the GenBank and RefSeq accessions of the same sequences
+    alias: {url: "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.chromAlias.txt"}
+    strata:
+      repeatmasker: {format: rmsk_out, url: "https://hgdownload.soe.ucsc.edu/goldenPath/hs1/bigZips/hs1.repeatMasker.out.gz"}
+      # T2T consortium segmental duplications (BED). Its extra columns are not
+      # parsed; add `identity_col: <0-based column>` after inspecting the file
+      # if you want the duplications binned by identity as for GRCh38.
+      segdup:
+        format: bed
+        set: segdup
+        label: SD
+        url: "https://s3-us-west-2.amazonaws.com/human-pangenomics/T2T/CHM13/assemblies/annotation/chm13v2.0_SD.bed"
+
+  ecoli:
+    label: "E. coli K-12 MG1655 (bacterium)"
+    fasta: {url: "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.fna.gz"}
+    contigs: all
+    alias: {url: "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_assembly_report.txt"}
+    strata:
+      # bacteria have no RepeatMasker track; their repeated sequence is annotated as features (GFF3, 1-based inclusive)
+      features:
+        format: gff
+        url: "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/005/845/GCF_000005845.2_ASM584v2/GCF_000005845.2_ASM584v2_genomic.gff.gz"
+        types: [mobile_genetic_element, rRNA, tRNA, repeat_region]
+
+  yeast:
+    label: "S. cerevisiae S288C (fungus)"
+    fasta: {url: "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/146/045/GCF_000146045.2_R64/GCF_000146045.2_R64_genomic.fna.gz"}
+    contigs: all
+    alias: {url: "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/146/045/GCF_000146045.2_R64/GCF_000146045.2_R64_assembly_report.txt"}
+    strata:
+      features:
+        format: gff
+        url: "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/146/045/GCF_000146045.2_R64/GCF_000146045.2_R64_genomic.gff.gz"
+        types: [mobile_genetic_element, long_terminal_repeat, rRNA, tRNA, telomere]
+
+# --------------------------------------------------------------------------
+# Platforms (tasks 3-5)
+# --------------------------------------------------------------------------
+# type: short = paired-end short reads, long = single long reads.
+# calibrate_on: the real read set whose measured error profile drives the simulator.
+# n_reads: simulated fragments (short) or reads (long) per dataset.
+#   Statistical power, not coverage, decides this number: with n reads the
+#   smallest error rate you can distinguish from zero is about 3 / n
+#   ("rule of three"). 200,000 pairs resolve rates down to ~1e-5 per read.
+platforms:
+  illumina:
+    label: "Illumina 2x148 (HiSeq)"
+    type: short
+    calibrate_on: hg002_illumina
+    n_reads: 200000
+    min_length: 50          # fastp: drop reads shorter than this after adapter trimming
+  ont:
+    label: "ONT ultra-long (R9.4, Guppy 3.2)"
+    type: long
+    calibrate_on: hg002_ont
+    n_reads: 8000
+    min_length: 1000
+    min_mean_q: 7           # the historical ONT pass threshold
+  hifi:
+    label: "PacBio HiFi (Sequel II)"
+    type: long
+    calibrate_on: hg002_hifi
+    n_reads: 8000
+    min_length: 1000
+    min_mean_q: 20          # HiFi is defined as >= Q20 consensus accuracy
+
+# --------------------------------------------------------------------------
+# Real reads: calibration (task 3) and validation (task 8)
+# --------------------------------------------------------------------------
+# All three sets are HG002 (NA24385), the Genome in a Bottle Ashkenazi son,
+# taken from GIAB's own aligned BAM files. Only reads overlapping n_windows
+# windows of window_bp are downloaded, through the BAM index.
+# Paths and MD5 sums are those listed in
+# https://github.com/genome-in-a-bottle/giab_data_indexes (AshkenazimTrio).
+# The MD5 belongs to the whole BAM and is recorded, not verified, for a slice.
+#
+# source can also be:
+#   ena    {accession: SRR..., n_reads: N, skip: M}   stream the first reads of an ENA run
+#   local  {fastq: [r1.fq.gz, r2.fq.gz], n_reads: N}  files already on disk
+real_reads:
+  hg002_illumina:
+    genome: grch38
+    platform: illumina
+    source: bam_slice
+    url: "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/NIST_HiSeq_HG002_Homogeneity-10953946/NHGRI_Illumina300X_AJtrio_novoalign_bams/HG002.GRCh38.300x.bam"
+    md5: a2a85243fba525d485a6ba89d73b46a9
+    n_reads: 300000         # pairs kept; half calibrate the simulator, half are held out for task 8
+    n_windows: 40
+    window_bp: 20000
+    also_align_to: [chm13]
+  hg002_ont:
+    genome: grch38
+    platform: ont
+    source: bam_slice
+    url: "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/Ultralong_OxfordNanopore/guppy-V3.2.4_2020-01-22/HG002_GRCh38_ONT-UL_GIAB_20200122.phased.bam"
+    md5: 6579fca2fb127080c446ba3e7b2fffec
+    n_reads: 16000
+    n_windows: 30
+    window_bp: 200000
+    also_align_to: [chm13]
+  hg002_hifi:
+    genome: grch38
+    platform: hifi
+    source: bam_slice
+    url: "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/AshkenazimTrio/HG002_NA24385_son/PacBio_CCS_15kb_20kb_chemistry2/GRCh38/HG002.SequelII.merged_15kb_20kb.pbmm2.GRCh38.haplotag.10x.bam"
+    md5: d303b337a2e9ffedef0f2ad894078ac6
+    n_reads: 16000
+    n_windows: 30
+    window_bp: 100000
+    also_align_to: [chm13]
+
+# --------------------------------------------------------------------------
+# Simulation grid (tasks 4, 5, 7)
+# --------------------------------------------------------------------------
+# Every genome is simulated on every platform with no added divergence
+# (GRCh38 reads additionally carry the HG002 truth-set variants).
+# divergence_series adds datasets whose reads differ from the reference by the
+# given fraction of bases (90 % substitutions, 10 % short indels): the
+# "mapping a different strain or species" scenario.
+simulation:
+  divergence_series:
+    genomes: [ecoli]
+    levels: [0.01, 0.02, 0.05, 0.10]
+
+# --------------------------------------------------------------------------
+# Aligners (task 6). Options are justified in docs/aligners.md.
+# --------------------------------------------------------------------------
+aligners:
+  short: [bwamem2, bowtie2, minimap2, strobealign]
+  long: [minimap2, winnowmap, ngmlr, bwa]
+
+aligner_options:
+  minimap2: {illumina: "-ax sr", ont: "-ax map-ont", hifi: "-ax map-hifi"}
+  winnowmap: {ont: "-ax map-ont", hifi: "-ax map-pb"}
+  ngmlr: {ont: "-x ont", hifi: "-x pacbio"}
+  bwa: {ont: "-x ont2d", hifi: "-x pacbio"}
+  # bwamem2, bowtie2, strobealign: defaults (Bowtie 2 gets -X from the measured fragment lengths)
+
+evaluation:
+  min_overlap: 0.1            # correct = intersection over union with the true interval above this
+  calibration_tolerance: 0.25 # simulated-vs-real difference accepted as "matches"
+  min_reads_per_stratum: 100  # strata with fewer reads are not compared between simulation and reality

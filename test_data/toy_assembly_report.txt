@@ -1,0 +1,5 @@
+# Assembly name:  ToyGenome1
+# Organism name:  Toy organism
+# Sequence-Name	Sequence-Role	Assigned-Molecule	Assigned-Molecule-Location/Type	GenBank-Accn	Relationship	RefSeq-Accn	Assembly-Unit	Sequence-Length	UCSC-style-name
+A	assembled-molecule	A	Chromosome	TY000001.1	=	TOY_000001.1	Primary Assembly	220000	chrA
+B	assembled-molecule	B	Chromosome	TY000002.1	=	TOY_000002.1	Primary Assembly	130000	chrB

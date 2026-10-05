@@ -1,0 +1,28 @@
+# Where Do Aligners Actually Fail?  (AITU Introduction to Bioinformatics, project 26)
+#
+#   snakemake --cores 4 --configfile config/test.yaml      quick check on the toy dataset
+#   snakemake --cores 8 --configfile config/config.yaml    the real analysis
+#   snakemake check_sources --cores 1 --configfile config/config.yaml   week-1 source check
+#
+# The workflow is split by task:
+#   rules/data.smk       task 2   references, annotations, truth sets, real reads, QC
+#   rules/simulate.smk   tasks 3-5  calibrate the simulator, simulate reads
+#   rules/align.smk      task 6   every aligner on identical reads, with timing
+#   rules/evaluate.smk   tasks 4-8  outcomes, MAPQ calibration, strata, real-data validation
+
+from snakemake.utils import min_version
+
+min_version("8.0")
+
+include: "rules/common.smk"
+include: "rules/data.smk"
+include: "rules/simulate.smk"
+include: "rules/align.smk"
+include: "rules/evaluate.smk"
+
+
+rule all:
+    input:
+        f"{OUT}/report/summary.md",
+        f"{OUT}/tables/provenance.tsv",
+    default_target: True

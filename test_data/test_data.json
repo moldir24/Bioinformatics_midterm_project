@@ -1,0 +1,10 @@
+{
+  "genome_bp": 350000,
+  "repeats": 186,
+  "segdups": 6,
+  "variants": 438,
+  "note": "synthetic test world, see alnfail/toy.py",
+  "illumina_pairs": 21000,
+  "ont_reads": 907,
+  "hifi_reads": 525
+}

@@ -1,0 +1,13 @@
+[project]
+name = "alnfail"
+version = "1.0.0"
+description = "Where do aligners actually fail? An independent, stratified aligner benchmark with a calibrated read simulator."
+requires-python = ">=3.10"
+dependencies = ["numpy", "pandas", "pyarrow", "matplotlib", "pysam"]
+
+[tool.setuptools]
+packages = ["alnfail"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

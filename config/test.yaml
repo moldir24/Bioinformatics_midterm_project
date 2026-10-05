@@ -1,0 +1,85 @@
+# Quick verification run on the toy dataset in test_data/ (no network needed).
+#
+#   snakemake --cores 4 --configfile config/test.yaml
+#
+# Finishes in a few minutes on a laptop and exercises every rule of the real
+# analysis. The toy genome and its "real" reads are synthetic stand-ins (see
+# test_data/README.md), so nothing this run prints is a result.
+
+outdir: results_test
+seed: 26
+threads: 2
+
+genomes:
+  toy:
+    label: "Toy genome (350 kb)"
+    fasta: {url: test_data/toy.fa}
+    contigs: all
+    alias: {url: test_data/toy_assembly_report.txt}
+    strata:
+      repeatmasker: {format: rmsk_out, url: test_data/toy.fa.out.gz}
+      segdup: {format: ucsc_superdups, url: test_data/toy.genomicSuperDups.txt.gz}
+      giab_confident: {format: bed, url: test_data/toy_individual.confident.bed, label: confident}
+    variants:
+      vcf: {url: test_data/toy_individual.vcf.gz}
+  toybac:
+    label: "Toy genome, chrB only (GFF features)"
+    fasta: {url: test_data/toy.fa}
+    contigs: [chrB]
+    alias: {url: test_data/toy_assembly_report.txt}
+    strata:
+      features:
+        format: gff
+        url: test_data/toy.gff.gz
+        types: [mobile_genetic_element, long_terminal_repeat, repeat_region]
+
+platforms:
+  illumina: {label: "Short reads (2x150)", type: short, calibrate_on: toy_illumina, n_reads: 12000}
+  ont: {label: "Nanopore-like long reads", type: long, calibrate_on: toy_ont, n_reads: 600, min_length: 1000, min_mean_q: 7}
+  hifi: {label: "HiFi-like long reads", type: long, calibrate_on: toy_hifi, n_reads: 400, min_length: 1000, min_mean_q: 20}
+
+real_reads:
+  toy_illumina:
+    genome: toy
+    platform: illumina
+    source: bam_slice
+    url: test_data/reads/toy_illumina.bam
+    n_reads: 20000
+    n_windows: 6
+    window_bp: 50000
+  toy_ont:
+    genome: toy
+    platform: ont
+    source: bam_slice
+    url: test_data/reads/toy_ont.bam
+    n_reads: 2000
+    n_windows: 6
+    window_bp: 50000
+  toy_hifi:
+    genome: toy
+    platform: hifi
+    source: bam_slice
+    url: test_data/reads/toy_hifi.bam
+    n_reads: 2000
+    n_windows: 6
+    window_bp: 50000
+
+simulation:
+  divergence_series:
+    genomes: [toybac]
+    levels: [0.02, 0.08]
+
+aligners:
+  short: [bwamem2, bowtie2, minimap2, strobealign]
+  long: [minimap2, winnowmap, ngmlr, bwa]
+
+aligner_options:
+  minimap2: {illumina: "-ax sr", ont: "-ax map-ont", hifi: "-ax map-hifi"}
+  winnowmap: {ont: "-ax map-ont", hifi: "-ax map-pb"}
+  ngmlr: {ont: "-x ont", hifi: "-x pacbio"}
+  bwa: {ont: "-x ont2d", hifi: "-x pacbio"}
+
+evaluation:
+  min_overlap: 0.1
+  calibration_tolerance: 0.25
+  min_reads_per_stratum: 30
