@@ -1,0 +1,9 @@
+results/
+results_test/
+.snakemake/
+__pycache__/
+*.pyc
+.pytest_cache/
+.vscode/
+.idea/
+.DS_Store
