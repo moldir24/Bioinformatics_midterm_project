@@ -1,40 +1,29 @@
-# Conda environment for the whole pipeline (Linux x86-64; on Windows use WSL2,
-# on Apple silicon use the Dockerfile, because several aligners have no native build).
-#
-#   mamba env create -f environment.yml      # or: conda env create -f environment.yml
-#   conda activate alnfail
-#
-# After creating it, freeze the exact builds you got and commit the file; that
-# lock file is what makes the analysis reproducible:
-#
+# Conda environment for the whole pipeline (Linux x86-64).
+#   conda env create -f environment.yml && conda activate alnfail
+# After creating it, freeze what was installed and commit the file:
 #   conda env export --no-builds > environment.lock.yml
-#
 name: alnfail
 channels:
   - conda-forge
   - bioconda
 dependencies:
   - python=3.12
-  # workflow
   - snakemake-minimal>=8.20
-  # python analysis stack
   - numpy>=1.26
   - pandas>=2.2
   - pyarrow>=15
   - matplotlib-base>=3.8
   - pysam>=0.22
   - pytest>=8
-  # alignment and file handling (versions the pipeline was developed against)
-  - samtools=1.19.2
-  - minimap2=2.26
-  - bwa-mem2=2.2.1
-  - bwa=0.7.17
-  - bowtie2=2.5.2
+  # lower bounds are the versions the pipeline was developed against
+  - samtools>=1.19.2,<2
+  - minimap2>=2.26,<3
+  - bwa-mem2>=2.2.1
+  - bwa>=0.7.17
+  - bowtie2>=2.5.4
   - strobealign>=0.14,<0.17
   - winnowmap=2.03
   - ngmlr=0.2.7
-  # read QC
-  - fastp=0.23.4
-  # retrieval and compression
+  - fastp>=0.23.4,<1
   - curl
   - pigz
