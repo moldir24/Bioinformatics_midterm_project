@@ -492,6 +492,13 @@ def cmd_report(a):
     build_report(a.tables, a.outdir, a.meta, a.benchmarks)
 
 
+def cmd_html(a):
+    """One self-contained HTML page from summary.md and the figures."""
+    from .html import build_html
+
+    print(f"written: {build_html(a.report, a.out)}")
+
+
 def cmd_mapq_theory(a):
     """Tables behind the task-1 explanation of MAPQ."""
     from .mapq_theory import reference_table, two_copy_experiment
@@ -573,6 +580,7 @@ def build_parser() -> argparse.ArgumentParser:
     add("benchmarks", cmd_benchmarks, arg("--files", nargs="+", required=True), arg("--out", required=True))
     add("report", cmd_report, arg("--tables", required=True), arg("--outdir", required=True), arg("--meta"),
         arg("--benchmarks"))
+    add("html", cmd_html, arg("--report", required=True), arg("--out"))
     add("mapq-theory", cmd_mapq_theory, arg("--outdir", required=True), arg("--error-rate", type=float, default=0.05),
         arg("--reads", type=int, default=1_000_000))
     add("make-test-data", cmd_make_test_data, arg("--outdir", required=True), arg("--seed", type=int, default=26))

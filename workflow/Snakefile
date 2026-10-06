@@ -24,5 +24,6 @@ include: "rules/evaluate.smk"
 rule all:
     input:
         f"{OUT}/report/summary.md",
+        f"{OUT}/report/report.html",
         f"{OUT}/tables/provenance.tsv",
     default_target: True

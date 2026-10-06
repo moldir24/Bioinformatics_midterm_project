@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from . import plots
+from .html import build_html
 from .profile import load_profile
 from .stats import wilson_interval
 
@@ -205,4 +206,5 @@ def build_report(tables: str, outdir: str, meta_path: str | None = None, benchma
         out += ["## Figures", ""] + [f"- `{name}`: {caption}" for name, caption in figures] + [""]
     with open(os.path.join(outdir, "summary.md"), "w") as fh:
         fh.write("\n".join(out))
-    print(f"{len(figures)} figures and summary.md written to {outdir}")
+    page = build_html(outdir)  # the same content as one readable page
+    print(f"{len(figures)} figures, summary.md and {os.path.basename(page)} written to {outdir}")

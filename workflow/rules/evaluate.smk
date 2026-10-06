@@ -160,7 +160,7 @@ rule mapq_theory:
 
 
 rule report:
-    """Figures and the results digest."""
+    """Figures, the results digest (summary.md) and the same digest as one readable page (report.html)."""
     input:
         f"{OUT}/tables/headline.tsv",
         f"{OUT}/tables/mapq_ideal_calibration.tsv",
@@ -168,6 +168,7 @@ rule report:
         benchmarks=f"{OUT}/tables/benchmarks.tsv",
     output:
         f"{OUT}/report/summary.md",
+        f"{OUT}/report/report.html",
     params:
         tables=f"{OUT}/tables",
         outdir=f"{OUT}/report",

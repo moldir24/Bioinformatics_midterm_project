@@ -1,4 +1,3 @@
-# Bioinformatics_midterm_project
 # Where Do Aligners Actually Fail?
 
 An independent benchmark of read aligners, built on reads whose true origin is
@@ -26,7 +25,7 @@ Conda or mamba is the only prerequisite.
 git clone <your repository URL> && cd <repository>
 
 # 2. create the environment
-mamba env create -f environment.yml        
+mamba env create -f environment.yml        # or: conda env create -f environment.yml
 conda activate alnfail
 
 # 3. check the installation on the bundled toy dataset (a few minutes, no network)
@@ -45,9 +44,10 @@ timed on the real data yet. For orientation: the toy run takes six minutes on
 two cores, and a 5 Mb bacterial genome with 200,000 read pairs and 4,000 to
 6,000 long reads per dataset (nine simulated and three real datasets) took 25
 minutes on two cores with a peak of 1 GB. The run can be interrupted and
-restarted; Snakemake continues where it stopped. The headline table is
-`results/tables/headline.tsv`, the figures and the digest are in
-`results/report/`.
+restarted; Snakemake continues where it stopped. Open
+`results/report/report.html` in a browser to read the results; the headline
+table is `results/tables/headline.tsv`, the figures and the plain-text digest
+are in `results/report/`.
 
 If conda cannot be used, `docker build -t alnfail .` builds the same
 environment in a container (see the `Dockerfile` for the run command).
@@ -57,7 +57,8 @@ environment in a container (see the `Dockerfile` for the run command).
 ```
 results/
 ├── report/
-│   ├── summary.md                  the numbers, in tables (start here)
+│   ├── report.html                 everything on one page, figures included (start here)
+│   ├── summary.md                  the same numbers as plain Markdown tables
 │   ├── fig_accuracy.png            misplaced and unmapped reads per aligner, genome, platform
 │   ├── fig_mapq_calibration.png    reported MAPQ against observed error
 │   ├── fig_mapq_threshold.png      reads kept versus errors kept when filtering by MAPQ
@@ -101,11 +102,12 @@ written report.
 
 ```
 alnfail/            the analysis package; every step is `python -m alnfail <command>`
+                    (`html.py` turns the digest and figures into the one-page report)
 workflow/           Snakemake workflow (Snakefile and rules/, one file per group of tasks)
 config/config.yaml  the real analysis: genomes, platforms, read sets, aligners
 config/test.yaml    the same workflow on the toy dataset
 test_data/          small synthetic dataset for verification (see its README)
-tests/              unit tests: coordinates, simulator truth, scoring, calibration arithmetic
+tests/              unit tests: coordinates, simulator truth, scoring, calibration arithmetic, the HTML page
 docs/               task 1 essay, data sources, aligners, methods and limitations, report outline
 environment.yml     conda environment; Dockerfile builds the same in a container
 ```
@@ -127,9 +129,10 @@ Everything is driven by `config/config.yaml`:
 Useful commands:
 
 ```bash
-snakemake -n --configfile config/config.yaml                
+snakemake -n --configfile config/config.yaml                 # dry run: list what would be done
 snakemake --cores 8 --configfile config/config.yaml --rerun-incomplete
-python -m alnfail --help                                    
+python -m alnfail --help                                     # every step can be run by hand
+python -m alnfail html --report results/report               # rebuild report.html from summary.md and the figures
 ```
 
 ## Status of this code
